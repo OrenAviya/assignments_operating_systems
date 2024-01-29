@@ -9,21 +9,21 @@ int main(int argc, char* argv[]) {
       printf("Usage: %s src_file dst_file\n", argv[0]);
        return 1;
     }
-
+    // Extract source and destination file paths from command-line arguments
     const char *src_file = argv[1];
     const char *dst_file = argv[2];
-
-
-
+    // Encryption key
     char key[62] = "defghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abc";
+    // Create a codec using the provided key
     void* codec = createCodec(key);
-
+// Check if codec creation was successful
     if (codec == NULL) {
         fprintf(stderr, "Error creating codec\n");
         return 1;
     }
 
     size_t length;
+    // Read the content of the source file into textin (for decode)
     char *textin = readFile(dst_file, &length);
     if (textin != NULL) {
         // prints for checking...
@@ -33,7 +33,10 @@ int main(int argc, char* argv[]) {
         printf("Error: textin is NULL");
         exit(1);
     }
+    // Allocate memory for the encoded textout
     char *textout = (char *)malloc(length + 1);
+
+    // decode the textin using the decode function
     int result = decode(textin,textout, length, codec);
     if (result < 0) {
         fprintf(stderr, "Error decoding\n");
