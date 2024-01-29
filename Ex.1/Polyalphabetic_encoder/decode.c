@@ -5,18 +5,16 @@
 
 
 int main(int argc, char* argv[]) {
-    //    if (argc != 3) {
-//        printf("Usage: %s src_file dst_file\n", argv[0]);
-//        return 1;
-//    }
-//
-//    const char *src_file = argv[1];
-//    const char *dst_file = argv[2];
+    if (argc != 3) {
+      printf("Usage: %s src_file dst_file\n", argv[0]);
+       return 1;
+    }
 
-    const char *src_file = "/home/ofr/CLionProjects/OS-Matala1-Q3/srcFile";
-    const char *dst_file = "/home/ofr/CLionProjects/OS-Matala1-Q3/dstFile";
+    const char *src_file = argv[1];
+    const char *dst_file = argv[2];
 
-    // TODO: check if it is true
+
+
     char key[62] = "defghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abc";
     void* codec = createCodec(key);
 
@@ -28,8 +26,9 @@ int main(int argc, char* argv[]) {
     size_t length;
     char *textin = readFile(dst_file, &length);
     if (textin != NULL) {
-        printf("Text in content:%s\n", textin);
-        printf("File length:%zu\n", length);
+        // prints for checking...
+            // printf("Text in content:%s\n", textin);
+            // printf("File length:%zu\n", length);
     } else {
         printf("Error: textin is NULL");
         exit(1);
@@ -44,7 +43,8 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     if (textout != NULL) {
-        printf("Textout content:%s\n", textout);
+        // checking print
+         // printf("Textout content:%s\n", textout);
     } else {
         printf("Error: textout is NULL");
         free(textin);
@@ -56,16 +56,17 @@ int main(int argc, char* argv[]) {
     printf("Decoding successful\n");
     writeToFile(src_file, textout);
 
-    size_t len;
+    // checking ourselves:
+    /*size_t len;
     char *text = readFile(src_file, &len);
     if (text != NULL) {
         printf("Src file content:%s\n", text);
         printf("Src file length:%zu\n", length);
         free(text);
-    } else {
+        } else {
         printf("Error: textout is NULL");
-        exit(1);
-    }
+        exit(1);}
+        */
 
     return 0;
 }

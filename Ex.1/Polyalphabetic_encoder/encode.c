@@ -4,18 +4,15 @@
 
 
 int main(int argc, char* argv[]) {
-//    if (argc != 3) {
-//        printf("Usage: %s src_file dst_file\n", argv[0]);
-//        return 1;
-//    }
-//
-//    const char *src_file = argv[1];
-//    const char *dst_file = argv[2];
+    if (argc != 3) {
+        printf("Usage: %s src_file dst_file\n", argv[0]);
+        return 1;
+    }
 
-    const char *src_file = "/home/ofr/CLionProjects/OS-Matala1-Q3/srcFile";
-    const char *dst_file = "/home/ofr/CLionProjects/OS-Matala1-Q3/dstFile";
+    const char *src_file = argv[1];
+    const char *dst_file = argv[2];
 
-    // TODO: check if it is true
+
     char key[62] = "defghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abc";
     void* codec = createCodec(key);
 

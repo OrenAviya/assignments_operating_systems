@@ -3,7 +3,7 @@ project(untitled C)
 
 set(CMAKE_C_STANDARD 11)
 
-add_executable(untitled "debug Example/main.c"
+add_executable(untitled "debugExample/divisionByZero.c"
         "Pytagory triangle/pythagoreanTriangle.c"
         TarCompressEncrypt/myzip.c
 
