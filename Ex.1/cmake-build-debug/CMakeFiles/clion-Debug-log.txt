@@ -1,4 +1,4 @@
-/home/aviyaob/Downloads/CLion-2023.3.3/clion-2023.3.3/bin/cmake/linux/x64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" -S /home/aviyaob/CLionProjects/assignments_operating_systems/Ex.1 -B /home/aviyaob/CLionProjects/assignments_operating_systems/Ex.1/cmake-build-debug
+/snap/clion/263/bin/cmake/linux/x64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" -S /home/ofr/CLionProjects/assignments_operating_systems/Ex.1 -B /home/ofr/CLionProjects/assignments_operating_systems/Ex.1/cmake-build-debug
 CMake Deprecation Warning:
   Support for "Extra Generators" like
 
@@ -8,17 +8,11 @@ CMake Deprecation Warning:
   use the cmake-file-api(7) to view CMake-generated project build trees.
 
 
--- The C compiler identification is GNU 11.4.0
--- Detecting C compiler ABI info
--- Detecting C compiler ABI info - done
--- Check for working C compiler: /usr/bin/cc - skipped
--- Detecting C compile features
--- Detecting C compile features - done
--- Configuring done (0.3s)
+-- Configuring done (0.0s)
 CMake Error at CMakeLists.txt:6 (add_executable):
   Cannot find source file:
 
-    debug Example/main.c
+    Pytagory triangle/pythagoreanTriangle.c
 
 
 CMake Error at CMakeLists.txt:6 (add_executable):

@@ -6,6 +6,7 @@ set(CMAKE_C_STANDARD 11)
 add_executable(untitled "debugExample/divisionByZero.c"
         "Pytagory triangle/pythagoreanTriangle.c"
         TarCompressEncrypt/myzip.c
+        ../Ex.2/complexClient.c
 
 
 )
