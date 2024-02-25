@@ -2,11 +2,12 @@
 // Created by aviyaob on 2/25/24.
 //
 
-// proactor_lib/proactor.c
+// section_b/proactor.c
 #include "proactor.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 // Structure to represent each socket and its corresponding handler
 struct SocketHandler {

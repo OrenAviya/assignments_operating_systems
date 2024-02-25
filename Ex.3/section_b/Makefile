@@ -1,5 +1,5 @@
-# proactor_lib/Makefile
-proactor_lib: libproactor.a
+# project/section_b/Makefile
+all: libproactor.a
 
 libproactor.a: proactor.o
 	ar rcs libproactor.a proactor.o

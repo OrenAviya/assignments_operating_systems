@@ -46,6 +46,7 @@ void* handle_client(void* arg) {
 }
 
 int main() {
+    printf("Section A - Server\n");
     int server_socket;
     struct sockaddr_in server_addr, client_addr;
     socklen_t client_addr_len = sizeof(client_addr);

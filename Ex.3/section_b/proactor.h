@@ -2,7 +2,7 @@
 // Created by aviyaob on 2/25/24.
 //
 
-// proactor_lib/proactor.h
+// section_b/proactor.h
 #ifndef PROACTOR_H
 
 #include <stddef.h>

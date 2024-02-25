@@ -58,6 +58,7 @@ void* handle_keyboard(void* arg) {
 }
 
 int main() {
+    printf("Section A - Client\n");
     int client_socket;
     struct sockaddr_in server_addr;
 

@@ -2,7 +2,7 @@
 // Created by aviyaob on 2/25/24.
 //
 //server_proactor.c
-#include "proactor_lib/proactor.h"
+#include "../section_b/proactor.h"
 #include <stdio.h>
 #include <unistd.h>
 

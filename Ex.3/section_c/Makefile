@@ -1,15 +1,11 @@
-# Makefile
-all: proactor_lib libserver
-
-proactor_lib:
-	$(MAKE) -C proactor_lib
+# project/section_c/Makefile
+all: libserver
 
 libserver: server_proactor.o
-	gcc -o libserver server_proactor.o -Lproactor_lib -lproactor -pthread
+	gcc -o libserver server_proactor.o -L../section_b -lproactor -pthread
 
 server_proactor.o: server_proactor.c
-	gcc -c -o server_proactor.o server_proactor.c -Iproactor_lib
+	gcc -c -o server_proactor.o server_proactor.c -I../section_b
 
 clean:
-	$(MAKE) -C proactor_lib clean
 	rm -f libserver server_proactor.o
