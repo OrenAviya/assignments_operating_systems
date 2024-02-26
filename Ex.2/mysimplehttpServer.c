@@ -13,6 +13,7 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include <openssl/buffer.h>
+#include <libgen.h>
 
 #define BUFFER_SIZE 1024
 
@@ -20,17 +21,23 @@ void handle_request(int client_socket, const char *root_directory);
 
 void handle_get_request(int client_socket, const char *remote_path, const char *root_directory);
 
-void handle_post_request(int client_socket, const char *remote_path, const char *root_directory);
+void handle_post_request(int client_socket, const char *remote_path, const char *root_directory, const char *file_data);
 
 void send_response(int client_socket, const char *response);
 
+int Base64Encode(const char* message, char** buffer);
+
+void Base64Decode(const char* input, char** output);
+
+
 int main(int argc, char *argv[]) {
+
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <root_directory>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
-    int server_socket, client_socket;
+   int server_socket, client_socket;
     struct sockaddr_in server_addr, client_addr;
     socklen_t client_len = sizeof(client_addr);
 
@@ -71,6 +78,7 @@ int main(int argc, char *argv[]) {
             close(client_socket);
             continue;
         } else if (child_pid == 0) {  // Child process
+            printf("in the child fork\n");
             close(server_socket);
             handle_request(client_socket, argv[1]);
             exit(EXIT_SUCCESS);
@@ -84,11 +92,13 @@ int main(int argc, char *argv[]) {
 }
 
 void handle_request(int client_socket, const char *root_directory) {
+    printf("root directory: %s\n", root_directory);
     char buffer[BUFFER_SIZE];
 
     ssize_t received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
     if (received == -1) {
         perror("Error receiving data");
+        send_response(client_socket, "500 INTERNAL ERROR");
         close(client_socket);
         return;
     }
@@ -96,15 +106,29 @@ void handle_request(int client_socket, const char *root_directory) {
     buffer[received] = '\0';
 
     if (strstr(buffer, "GET") == buffer) {
+        printf("in the GET part\n");
         char remote_path[BUFFER_SIZE];
         sscanf(buffer, "GET %s", remote_path);
         handle_get_request(client_socket, remote_path, root_directory);
     } else if (strstr(buffer, "POST") == buffer) {
+        printf("in the POST part\n");
         char remote_path[BUFFER_SIZE];
         sscanf(buffer, "POST %s", remote_path);
-        handle_post_request(client_socket, remote_path, root_directory);
+
+        // Extract file data from the POST request
+        char *file_data_start = strstr(buffer, "\r\n\r\n");
+        if (file_data_start != NULL) {
+            file_data_start += 4; // Move past the '\r\n\r\n' sequence
+            handle_post_request(client_socket, remote_path, root_directory, file_data_start);
+        } else {
+            send_response(client_socket, "400 BAD REQUEST");
+            close(client_socket);
+            return;
+        }
     } else {
         send_response(client_socket, "500 INTERNAL ERROR");
+        close(client_socket);
+        return;
     }
 
     close(client_socket);
@@ -123,75 +147,56 @@ void handle_get_request(int client_socket, const char *remote_path, const char *
         long file_size = ftell(file);
         fseek(file, 0, SEEK_SET);
 
-        char *contents = (char *) malloc(file_size);
+        char *contents = (char *) malloc(file_size + 1); // Extra byte for null terminator
         fread(contents, 1, file_size, file);
+        contents[file_size] = '\0'; // Null terminate the string
 
         flock(fileno(file), LOCK_UN);  // Release file lock
         fclose(file);
 
-        // Encode contents using OpenSSL base64 encoding
-        BIO *bio, *b64;
-        BUF_MEM *bptr;
+        // Decode the content
+        char *decoded_content;
+        Base64Decode(contents, &decoded_content);
 
-        b64 = BIO_new(BIO_f_base64());
-        BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-        bio = BIO_new(BIO_s_mem());
-        BIO_push(b64, bio);
+        // Send both the encoded and decoded content back to the client
+        send_response(client_socket, "200 OK\n");
+        // Sending decoded content
+        send(client_socket, decoded_content, strlen(decoded_content), 0);
 
-        BIO_write(b64, contents, file_size);
-        BIO_flush(b64);
-        BIO_get_mem_ptr(b64, &bptr);
-
-        char *encoded_contents = (char *) malloc(bptr->length + 1);
-        memcpy(encoded_contents, bptr->data, bptr->length);
-        encoded_contents[bptr->length] = '\0';
-
-        BIO_free_all(b64);
         free(contents);
-
-        char response[BUFFER_SIZE];
-        snprintf(response, sizeof(response), "200 OK\n%s\n", encoded_contents);
-        send_response(client_socket, response);
-
-        free(encoded_contents);
+        free(decoded_content);
     } else {
         send_response(client_socket, "404 FILE NOT FOUND");
     }
 }
 
-void handle_post_request(int client_socket, const char *remote_path, const char *root_directory) {
-    char buffer[BUFFER_SIZE];
-    ssize_t received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
-    if (received == -1) {
-        perror("Error receiving data");
-        send_response(client_socket, "500 INTERNAL ERROR");
+
+
+
+void handle_post_request(int client_socket, const char *remote_path, const char *root_directory, const char *file_data) {
+    printf("in the handle_post_request function\n");
+
+    // Check if file_data is empty
+    if (file_data == NULL || strlen(file_data) == 0) {
+        send_response(client_socket, "400 BAD REQUEST");
         return;
     }
-
-    buffer[received] = '\0';
-
-    char *contents = strstr(buffer, "\n") + 1;
+    printf("root_directory:%s\n", root_directory);
+    printf("remote_path:%s\n", remote_path);
+    char *file_name = basename((char *)remote_path);
+    printf("the file name: %s \n", file_name);
 
     char full_path[BUFFER_SIZE];
-    snprintf(full_path, sizeof(full_path), "%s%s", root_directory, remote_path);
+    snprintf(full_path, sizeof(full_path), "%s/serverFiles/%s", root_directory, file_name);
+    printf("Saving file to: %s\n", full_path);
 
     FILE *file = fopen(full_path, "wb");
     if (file != NULL) {
         flock(fileno(file), LOCK_EX);  // Acquire file lock
 
-        // Decode contents using OpenSSL base64 decoding
-        BIO *b64, *bio;
-        b64 = BIO_new(BIO_f_base64());
-        bio = BIO_new_mem_buf(contents, -1);
-        bio = BIO_push(b64, bio);
-
-        char decoded_contents[BUFFER_SIZE];
-        int decoded_size = BIO_read(bio, decoded_contents, sizeof(decoded_contents));
-        decoded_contents[decoded_size] = '\0';
-
-        fwrite(decoded_contents, 1, decoded_size, file);
-
-        BIO_free_all(bio);
+        // Write the encoded file data directly to the file
+        fwrite(file_data, 1, strlen(file_data), file);
+        printf("File saved successfully\n");
 
         flock(fileno(file), LOCK_UN);  // Release file lock
         fclose(file);

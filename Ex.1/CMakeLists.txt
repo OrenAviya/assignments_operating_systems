@@ -7,6 +7,8 @@ add_executable(untitled "debugExample/divisionByZero.c"
         "Pytagory triangle/pythagoreanTriangle.c"
         TarCompressEncrypt/myzip.c
         ../Ex.2/complexClient.c
+        ../Ex.2/Base64Decode.c
+        ../Ex.2/Base64Encode.c
 
 
 )
