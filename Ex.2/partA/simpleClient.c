@@ -22,15 +22,15 @@ int main(int argc, char *argv[]) {
     const char *request_type = argv[1];
     const char *file_name = argv[2];
 
-    printf("the file name: %s \n", file_name);
+    printf("File name: %s \n", file_name);
 
     // Construct the request based on the request type and file name
     char request[BUFFER_SIZE];
     if (strcmp(request_type, "GET") == 0) {
-        printf("in the GET request\n");
+        printf("The request is GET \n");
         snprintf(request, sizeof(request), "GET /%s\r\n\r\n", file_name);
     } else if (strcmp(request_type, "POST") == 0) {
-        printf("in the POST request\n");
+        printf("The request is POST \n");
         snprintf(request, sizeof(request), "POST /%s\r\n\r\n", file_name);
     } else {
         fprintf(stderr, "Invalid request type. Please use 'GET' or 'POST'.\n");
