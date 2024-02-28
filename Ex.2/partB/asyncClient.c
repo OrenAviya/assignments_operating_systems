@@ -15,14 +15,14 @@
 void send_request(int socket, const char *request);
 
 int main(int argc, char *argv[]) {
-    if (argc != 4) {
-        fprintf(stderr, "Usage: %s <POST/GET> <file_name/.list> <server_port>\n", argv[0]);
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s <POST/GET> <file_name/.list> \n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
     const char *request_type = argv[1];
     const char *file_name = argv[2];
-    int server_port = atoi(argv[3]);
+    int server_port = 8080;
 
     const char *server_address = "127.0.0.1";
 

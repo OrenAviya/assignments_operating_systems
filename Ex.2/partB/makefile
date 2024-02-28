@@ -2,16 +2,13 @@ CC = gcc
 CFLAGS = -Wall -Wextra -Werror
 LDFLAGS = -lpthread -lssl -lcrypto -lm
 
-all: server client complexClient
+all: server asyncClient
 
-server:  server.c Base64Decode.c Base64Encode.c
-	$(CC) $(CFLAGS) -o  server mysimplehttpServer.c Base64Decode.c Base64Encode.c  $(LDFLAGS)
+server:  server.c base64.c
+	$(CC) $(CFLAGS) -o  server server.c base64.c $(LDFLAGS)
 
-client: SimpleClient.c
-	$(CC) $(CFLAGS) -o  client SimpleClient.c
-
-complexClient: complexClient.c
-	$(CC) $(CFLAGS) -o  complexClient complexClient.c $(LDFLAGS)
+asyncClient: asyncClient.c
+	$(CC) $(CFLAGS) -o  asyncClient asyncClient.c $(LDFLAGS)
 
 clean:
-	rm -f server client complexClient
+	rm -f server asyncClient
