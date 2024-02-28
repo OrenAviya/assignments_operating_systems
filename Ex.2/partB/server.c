@@ -14,6 +14,7 @@
 #include <openssl/evp.h>
 #include <openssl/buffer.h>
 #include <libgen.h>
+#include "base64.h"
 
 #define BUFFER_SIZE 1024
 
@@ -25,9 +26,6 @@ void handle_post_request(int client_socket, const char *remote_path, const char 
 
 void send_response(int client_socket, const char *response);
 
-int Base64Encode(const char* message, char** buffer);
-
-void Base64Decode(const char* input, char** output);
 
 
 int main(int argc, char *argv[]) {

@@ -4,8 +4,8 @@ LDFLAGS = -lpthread -lssl -lcrypto -lm
 
 all: server simpleClient
 
-server:  server.c Base64Decode.c Base64Encode.c
-	$(CC) $(CFLAGS) -o  server server.c Base64Decode.c Base64Encode.c  $(LDFLAGS)
+server:  server.c base64.c
+	$(CC) $(CFLAGS) -o  server server.c base64.c  $(LDFLAGS)
 
 simpleClient: simpleClient.c
 	$(CC) $(CFLAGS) -o  simpleClient simpleClient.c
