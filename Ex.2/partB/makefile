@@ -4,7 +4,7 @@ LDFLAGS = -lpthread -lssl -lcrypto -lm
 
 all: server asyncClient
 
-server:  server.c base64.c
+server:  server.c server.h base64.c
 	$(CC) $(CFLAGS) -o  server server.c base64.c $(LDFLAGS)
 
 asyncClient: asyncClient.c
