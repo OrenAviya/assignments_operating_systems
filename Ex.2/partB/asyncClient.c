@@ -23,7 +23,6 @@ int main(int argc, char *argv[]) {
     const char *request_type = argv[1];
     const char *file_name = argv[2];
     int server_port = 8080;
-
     const char *server_address = "127.0.0.1";
 
     // Create client socket
@@ -53,12 +52,25 @@ int main(int argc, char *argv[]) {
 
     // Receive and print server response
     char response[BUFFER_SIZE];
-    ssize_t bytes_received = recv(client_socket, response, BUFFER_SIZE - 1, 0);
-    if (bytes_received == -1) {
-        perror("Error receiving response");
-    } else {
-        response[bytes_received] = '\0';
-        printf("Server response: %s\n", response);
+    ssize_t bytes_received;
+
+    // If request is for a list, wait for multiple responses
+    if (strstr(file_name, ".list") != NULL) {
+        while ((bytes_received = recv(client_socket, response, BUFFER_SIZE - 1, 0)) > 0) {
+            response[bytes_received] = '\0';
+            printf("Server response: %s\n", response);
+        }
+        if (bytes_received == -1) {
+            perror("Error receiving response");
+        }
+    } else { // Single response for other file requests
+        bytes_received = recv(client_socket, response, BUFFER_SIZE - 1, 0);
+        if (bytes_received == -1) {
+            perror("Error receiving response");
+        } else {
+            response[bytes_received] = '\0';
+            printf("Server response: %s\n", response);
+        }
     }
 
     // Close the socket
