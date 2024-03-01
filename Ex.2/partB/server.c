@@ -84,7 +84,7 @@ void handle_request(int client_socket, const char *root_directory) {
     ssize_t received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
     if (received == -1) {
         perror("Error receiving data");
-        send_response(client_socket, "500 INTERNAL ERROR");
+        send_response(client_socket, "500 INTERNAL ERROR\n");
         close(client_socket);
         return;
     }
@@ -99,27 +99,19 @@ void handle_request(int client_socket, const char *root_directory) {
         char remote_path[BUFFER_SIZE];
         sscanf(buffer, "POST %s", remote_path);
         printf("Remote path: %s\n", remote_path);
-        // Extract file data from the POST request
-        char *file_data_start = strstr(buffer, "\r\n\r\n");
-        // Check if file_data_start is not NULL and not empty
-        if (file_data_start != NULL && *file_data_start != '\0') {
-            printf("File data start: %s\n", file_data_start);
-            handle_post_request(client_socket, remote_path, root_directory);
-        } else {
-            printf("No file data found in POST request\n");
-            send_response(client_socket, "400 BAD REQUEST");
-            close(client_socket);
-            return;
+        handle_post_request(client_socket, remote_path, root_directory);
         }
-
-    } else {
-        send_response(client_socket, "500 INTERNAL ERROR");
+    else {
+        send_response(client_socket, "500 INTERNAL ERROR\n");
         close(client_socket);
         return;
     }
 
     close(client_socket);
-}
+
+    }
+
+
 
 // ********************************* Handle GET request *********************************  //
 void handle_get_request(int client_socket, const char *remote_path, const char *root_directory) {
@@ -129,9 +121,9 @@ void handle_get_request(int client_socket, const char *remote_path, const char *
     printf("Path: %s\n", full_path);
 
     if (strstr(remote_path, ".list") != NULL) {
-        handle_file_list_get_request(client_socket, full_path, root_directory);
+        handle_file_list_request(client_socket, full_path, root_directory, "GET");
     } else {
-        handle_regular_file_get_request(client_socket, full_path);
+        handle_regular_file_request(client_socket, full_path,root_directory, "GET");
     }
     printf("GET request handled! \n\n");
 }
@@ -149,12 +141,11 @@ void handle_file_list_request(int client_socket, const char *full_path, const ch
     while (fgets(file_name, BUFFER_SIZE, file_list) != NULL) {
         trim_newline(file_name);
         char *file_path = construct_file_path(root_directory, file_name);
-
         if (file_path != NULL) {
-            if (strcmp(type_request, "GET")){
+            if (strcmp(type_request, "GET") == 0){
                 process_file_for_get(client_socket, file_path);
             } else {
-
+                process_file_for_post(client_socket, file_path, root_directory);
             }
             free(file_path);
         }
@@ -163,13 +154,13 @@ void handle_file_list_request(int client_socket, const char *full_path, const ch
     fclose(file_list);
 }
 
-void handle_regular_file_request(int client_socket, const char *full_path, char* type_request) {
+void handle_regular_file_request(int client_socket, const char *full_path,const char* root_directory, char* type_request) {
     FILE *file = fopen(full_path, "rb");
     if (file != NULL) {
         if (strcmp(type_request, "GET")) {
             process_file_for_get(client_socket, full_path);
         } else {
-            process_file_for_post(client_socket, full_path);
+            process_file_for_post(client_socket, full_path,root_directory);
         }
         fclose(file);
     } else {
@@ -255,17 +246,16 @@ void handle_post_request(int client_socket, const char *remote_path, const char 
     printf("Handle POST request...\n");
     char full_path[BUFFER_SIZE];
     snprintf(full_path, sizeof(full_path), "%s%s", root_directory, remote_path);
-    printf("Path: %s\n",full_path);
 
     if (strstr(remote_path, ".list") != NULL) {
         handle_file_list_request(client_socket, full_path, root_directory, "POST");
     } else {
-        handle_regular_file_request(client_socket, full_path, "POST");
+        handle_regular_file_request(client_socket, full_path,root_directory, "POST");
     }
     printf("POST request handled! \n\n");
 }
 
-void process_file_for_post(int client_socket, const char *file_path) {
+void process_file_for_post(int client_socket, const char *file_path, const char* root_directory) {
     FILE *file = fopen(file_path, "rb");
     if (file != NULL) {
         flock(fileno(file), LOCK_EX);
@@ -285,29 +275,31 @@ void process_file_for_post(int client_socket, const char *file_path) {
             char *encoded_content;
             Base64Encode(contents, &encoded_content);
 
+
             send_response(client_socket, "200 OK\n");
             send(client_socket, encoded_content, strlen(encoded_content), 0);
 
-            // Save the decoded content as a new file in root directory
+            // Save the encoded content as a new file in the root directory
             char *file_name = basename((char *)file_path);
-            char *file_path = malloc(strlen(file_path) + strlen(file_name) + 1);
-            if (client_file_path != NULL) {
-                snprintf(client_file_path, strlen("clientFiles/") + strlen(file_name) + 1, "clientFiles/%s", file_name);
-                FILE *client_file = fopen(client_file_path, "wb");
-                if (client_file != NULL) {
-                    fwrite(decoded_content, 1, strlen(decoded_content), client_file);
-                    fclose(client_file);
-                    printf("Saved file '%s' in clientFiles folder.\n", file_name);
+            char *new_file_name = malloc(strlen(root_directory) + strlen("/") + strlen(file_name) + strlen("_encoded") + 1);
+            if (new_file_name != NULL) {
+                sprintf(new_file_name, "%s/%s_encoded", root_directory, file_name);
+
+                FILE *new_file = fopen(new_file_name, "wb");
+                if (new_file != NULL) {
+                    fwrite(encoded_content, 1, strlen(encoded_content), new_file);
+                    fclose(new_file);
+                    printf("Saved file '%s' in '%s' directory.\n", new_file_name, root_directory);
                 } else {
-                    printf("Error: Couldn't save file '%s' in clientFiles folder.\n", file_name);
+                    printf("Error: Couldn't save file '%s' in '%s' directory.\n", new_file_name, root_directory);
                 }
-                free(client_file_path);
+                free(new_file_name);
             } else {
-                perror("Error allocating memory for client_file_path");
+                printf("Error: Couldn't allocate memory for new file name.\n");
             }
 
+            free(encoded_content);
             free(contents);
-            free(decoded_content);
             printf("\n");
         } else {
             perror("Error allocating memory for file contents");
@@ -318,6 +310,7 @@ void process_file_for_post(int client_socket, const char *file_path) {
         printf("File '%s' not found.\n", file_path);
     }
 }
+
 
 
 void send_response(int client_socket, const char *response) {

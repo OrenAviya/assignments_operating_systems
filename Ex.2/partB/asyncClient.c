@@ -49,6 +49,7 @@ int main(int argc, char *argv[]) {
 
     // Send the request to the server
     send_request(client_socket, request);
+    printf("%s request sent!\n", request_type);
 
     // Receive and print server response
     char response[BUFFER_SIZE];
