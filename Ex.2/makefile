@@ -1,17 +1,17 @@
-CC = gcc
-CFLAGS = -Wall -Wextra -Werror
-LDFLAGS = -lpthread -lssl -lcrypto -lm
+# List of subdirectories containing code and Makefile
+SUBDIRS := partA partB
 
-all: server client complexClient
+# Default target
+all: $(SUBDIRS)
 
-server:  server.c Base64Decode.c Base64Encode.c
-	$(CC) $(CFLAGS) -o  server mysimplehttpServer.c Base64Decode.c Base64Encode.c  $(LDFLAGS)
+# Recursively execute make in each subdirectory
+$(SUBDIRS):
+	$(MAKE) -C $@
 
-client: SimpleClient.c
-	$(CC) $(CFLAGS) -o  client SimpleClient.c
+.PHONY: all $(SUBDIRS)
 
-complexClient: complexClient.c
-	$(CC) $(CFLAGS) -o  complexClient complexClient.c $(LDFLAGS)
-
+# Clean up generated files
 clean:
-	rm -f server client complexClient
+	for dir in $(SUBDIRS); do \
+		$(MAKE) -C $$dir clean;\
+	done
