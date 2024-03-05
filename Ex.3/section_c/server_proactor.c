@@ -1,7 +1,3 @@
-//
-// Created by aviyaob on 2/25/24.
-//
-// server_proactor.c
 #include <netinet/in.h>
 #include <string.h>
 #include <stdio.h>
@@ -13,7 +9,33 @@
 #define MAX_CLIENTS 10
 #define MAX_MSG_SIZE 1024
 
+// Structure to represent each connected client
+struct Client {
+    int socket;
+    struct Client* next;
+};
+
+// Global variable to keep track of connected clients
+static struct Client* clients = NULL;
+
+// Function to broadcast message to all clients except the sender
+void broadcast_message(int sender_socket, const char* message) {
+    struct Client* current = clients;
+    while (current != NULL) {
+        if (current->socket != sender_socket) {
+            send(current->socket, message, strlen(message), 0);
+        }
+        current = current->next;
+    }
+}
+
 void handle_connection(int socket) {
+    // Add the client to the list of connected clients
+    struct Client* new_client = (struct Client*)malloc(sizeof(struct Client));
+    new_client->socket = socket;
+    new_client->next = clients;
+    clients = new_client;
+
     // Handle the connection (e.g., read/write operations)
     printf("Handling connection on socket %d\n", socket);
 
@@ -32,6 +54,25 @@ void handle_connection(int socket) {
         buffer[recv_size] = '\0';
         printf("Client %d: %s", socket, buffer);
 
+        // Broadcast message to all other clients
+        broadcast_message(socket, buffer);
+    }
+
+    // Remove the client from the list of connected clients
+    struct Client* prev = NULL;
+    struct Client* current = clients;
+    while (current != NULL) {
+        if (current->socket == socket) {
+            if (prev != NULL) {
+                prev->next = current->next;
+            } else {
+                clients = current->next;
+            }
+            free(current);
+            break;
+        }
+        prev = current;
+        current = current->next;
     }
 
     // Cleanup and close the socket

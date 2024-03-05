@@ -1,15 +1,22 @@
-all: section_a section_b section_c
+CC = gcc
+CFLAGS = -Wall -Wextra -pthread
+INCLUDES = -I section_b
 
-section_a:
-	$(MAKE) -C section_a
+all: chat_section_a section_c/server_proactor
 
-section_b:
-	$(MAKE) -C section_b
+chat_section_a:
+	@$(MAKE) -C section_a
 
-section_c:
-	$(MAKE) -C section_c
+section_c/server_proactor: section_c/server_proactor.c section_b/libproactor.a
+	$(CC) $(CFLAGS) $(INCLUDES) $< -o $@ -Lsection_b -lproactor
+
+
+section_b/libproactor.a: section_b/proactor.o
+	ar rcs $@ $^
+
+section_b/proactor.o: section_b/proactor.c section_b/proactor.h
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 clean:
-	$(MAKE) -C section_a clean
-	$(MAKE) -C section_b clean
-	$(MAKE) -C section_c clean
+	rm -f server_proactor section_b/proactor.o section_b/libproactor.a
+	@$(MAKE) -C section_a clean
