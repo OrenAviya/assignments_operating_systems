@@ -7,7 +7,7 @@
 #include "../section_b/proactor.h" // Include proactor.h for asynchronous socket handling
 
 #define PORT 8888
-#define MAX_CLIENTS 10
+#define MAX_CLIENTS 1000
 #define MAX_MSG_SIZE 1024
 
 // Structure to represent each connected client
