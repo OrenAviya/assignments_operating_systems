@@ -1,22 +1,15 @@
-#Makefile for the entire project
+all: section_a section_b section_c
 
-all: chat_client chat_server libserver
+section_a:
+	$(MAKE) -C section_a
 
-# Build the proactor library
-libproactor.a: proactor.o
-	ar rcs libproactor.a proactor.o
+section_b:
+	$(MAKE) -C section_b
 
-proactor.o: proactor.c proactor.h
-	gcc -c -o proactor.o proactor.c -pthread
-
-
-
-# Build the server with proactor
-libserver: server_proactor.o libproactor.a
-	gcc -o libserver server_proactor.o -L. -lproactor -pthread
-
-server_proactor.o: server_proactor.c
-	gcc -c -o server_proactor.o server_proactor.c -I.
+section_c:
+	$(MAKE) -C section_c
 
 clean:
-	rm -f chat_client chat_server libserver libproactor.a *.o
+	$(MAKE) -C section_a clean
+	$(MAKE) -C section_b clean
+	$(MAKE) -C section_c clean
