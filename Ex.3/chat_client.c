@@ -32,18 +32,24 @@ void* handle_server(void* arg) {
             printf("Server disconnected.\n");
             break;
         }
-        else
-        {
-            printf("%zd",recv_size);
-        }
 
         // Display message from server
         buffer[recv_size] = '\0';
-        printf("Server: %s", buffer);
+        printf("\n%s", buffer);
+        fflush(stdout); // Flush the output buffer
+
+        // Prompt for user input
+        printf("Enter your message: ");
+
+
+
     }
 
     return NULL;
 }
+
+
+
 
 // Function to handle keyboard input
 void* handle_keyboard(void* arg) {
@@ -51,7 +57,7 @@ void* handle_keyboard(void* arg) {
     char buffer[MAX_MSG_SIZE];
 
     while (1) {
-        printf("You: ");
+        printf("Enter your message: ");
         fgets(buffer, MAX_MSG_SIZE, stdin);
 
         // Send message to server
