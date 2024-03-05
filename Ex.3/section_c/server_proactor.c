@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h> // Include pthread.h for mutex functions
-#include "../section_b/proactor.h"
+#include "../section_b/proactor.h" // Include proactor.h for asynchronous socket handling
 
 #define PORT 8888
 #define MAX_CLIENTS 10
@@ -17,28 +17,35 @@ struct Client {
 };
 
 // Global variables for managing client connections
-static struct Client* clients = NULL;
-static pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
+static struct Client* clients = NULL; // Linked list of connected clients
+static pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER; // Mutex for thread-safe access to clients list
 static int num_clients = 0; // Track the number of clients
 
-// Function to broadcast message to all clients except the sender
-void broadcast_message(const char* message, int sender_socket) {
+// Function to send message to all clients except the sender
+void send_message_to_clients(const char* message, int sender_socket) {
+    // Create a buffer to hold the full message including the sender's socket number
     char full_message[MAX_MSG_SIZE + 20]; // Additional space for "Client %d: " and sender_socket
     snprintf(full_message, sizeof(full_message), "Client %d: %s", sender_socket, message);
+
+    // Lock the mutex to access the clients list
     pthread_mutex_lock(&clients_mutex);
+
+    // Iterate through the linked list of clients and send the message
     struct Client* current = clients;
     while (current != NULL) {
-        if (current->socket != sender_socket) {
+        if (current->socket != sender_socket) { // Exclude the sender
             send(current->socket, full_message, strlen(full_message), 0);
         }
         current = current->next;
     }
+
+    // Unlock the mutex
     pthread_mutex_unlock(&clients_mutex);
 }
 
 // Function to handle client connections
 void handle_connection(int socket) {
-    // Add the client to the list of connected clients
+    // Add the client to the linked list of connected clients
     struct Client* new_client = (struct Client*)malloc(sizeof(struct Client));
     new_client->socket = socket;
     new_client->next = clients;
@@ -64,10 +71,10 @@ void handle_connection(int socket) {
         printf("Client %d: %s", socket, buffer);
 
         // Broadcast message to all other clients
-        broadcast_message(buffer, socket);
+        send_message_to_clients(buffer, socket);
     }
 
-    // Remove the client from the list of connected clients
+    // Remove the client from the linked list of connected clients
     pthread_mutex_lock(&clients_mutex);
     struct Client* prev = NULL;
     struct Client* current = clients;
@@ -92,7 +99,7 @@ void handle_connection(int socket) {
 }
 
 int main() {
-    proactor_init();
+    proactor_init(); // Initialize the proactor for asynchronous socket handling
 
     int server_socket;
     struct sockaddr_in server_addr;
@@ -134,13 +141,13 @@ int main() {
 
         printf("New client connected: %d\n", client_socket);
 
-        // Add the client socket to the proactor
+        // Add the client socket to the proactor for asynchronous handling
         proactor_add_socket(client_socket, handle_connection);
     }
 
     // Cleanup
-    proactor_cleanup();
-    close(server_socket);
+    proactor_cleanup(); // Cleanup the proactor resources
+    close(server_socket); // Close the server socket
 
     return 0;
 }

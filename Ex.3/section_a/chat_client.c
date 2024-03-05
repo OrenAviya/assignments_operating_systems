@@ -89,7 +89,7 @@ int main() {
 
     printf("Connected to server at %s:%d\n", SERVER_IP, PORT);
 
-    // Create a structure to hold client information
+    // Create a struct to hold client information
     struct ClientInfo* client_info = (struct ClientInfo*)malloc(sizeof(struct ClientInfo));
     client_info->socket = client_socket;
 
