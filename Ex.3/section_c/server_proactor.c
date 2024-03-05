@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <pthread.h> // Include pthread.h for mutex functions
 #include "../section_b/proactor.h"
 
 #define PORT 8888
@@ -15,26 +16,34 @@ struct Client {
     struct Client* next;
 };
 
-// Global variable to keep track of connected clients
+// Global variables for managing client connections
 static struct Client* clients = NULL;
+static pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
+static int num_clients = 0; // Track the number of clients
 
 // Function to broadcast message to all clients except the sender
-void broadcast_message(int sender_socket, const char* message) {
+void broadcast_message(const char* message, int sender_socket) {
+    char full_message[MAX_MSG_SIZE + 20]; // Additional space for "Client %d: " and sender_socket
+    snprintf(full_message, sizeof(full_message), "Client %d: %s", sender_socket, message);
+    pthread_mutex_lock(&clients_mutex);
     struct Client* current = clients;
     while (current != NULL) {
         if (current->socket != sender_socket) {
-            send(current->socket, message, strlen(message), 0);
+            send(current->socket, full_message, strlen(full_message), 0);
         }
         current = current->next;
     }
+    pthread_mutex_unlock(&clients_mutex);
 }
 
+// Function to handle client connections
 void handle_connection(int socket) {
     // Add the client to the list of connected clients
     struct Client* new_client = (struct Client*)malloc(sizeof(struct Client));
     new_client->socket = socket;
     new_client->next = clients;
     clients = new_client;
+    num_clients++;
 
     // Handle the connection (e.g., read/write operations)
     printf("Handling connection on socket %d\n", socket);
@@ -55,10 +64,11 @@ void handle_connection(int socket) {
         printf("Client %d: %s", socket, buffer);
 
         // Broadcast message to all other clients
-        broadcast_message(socket, buffer);
+        broadcast_message(buffer, socket);
     }
 
     // Remove the client from the list of connected clients
+    pthread_mutex_lock(&clients_mutex);
     struct Client* prev = NULL;
     struct Client* current = clients;
     while (current != NULL) {
@@ -69,11 +79,13 @@ void handle_connection(int socket) {
                 clients = current->next;
             }
             free(current);
+            num_clients--;
             break;
         }
         prev = current;
         current = current->next;
     }
+    pthread_mutex_unlock(&clients_mutex);
 
     // Cleanup and close the socket
     close(socket);

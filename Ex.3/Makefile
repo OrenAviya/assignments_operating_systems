@@ -18,5 +18,5 @@ section_b/proactor.o: section_b/proactor.c section_b/proactor.h
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 clean:
-	rm -f server_proactor section_b/proactor.o section_b/libproactor.a
+	rm -f section_c/server_proactor section_b/proactor.o section_b/libproactor.a
 	@$(MAKE) -C section_a clean
