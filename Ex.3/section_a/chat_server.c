@@ -18,6 +18,7 @@ struct ClientInfo {
 // Define a global array to store client sockets
 int client_sockets[MAX_CLIENTS];
 int num_clients = 0;
+// initializes a pthread mutex
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Function to send a message to all clients except the sender
@@ -25,17 +26,14 @@ void send_message_to_clients(char *message, int sender_socket) {
     // Create a buffer to hold the full message including the sender's socket number
     char full_message[MAX_MSG_SIZE + 20]; // Additional space for "client %d: " and sender_socket
     snprintf(full_message, sizeof(full_message), "client %d: %s", sender_socket, message);
-
     // Lock the mutex to access the client_sockets array
     pthread_mutex_lock(&clients_mutex);
-
     // Iterate through all client sockets and send the message
     for (int i = 0; i < num_clients; i++) {
         if (client_sockets[i] != sender_socket) { // Skip the sender
             send(client_sockets[i], full_message, strlen(full_message), 0);
         }
     }
-
     // Unlock the mutex
     pthread_mutex_unlock(&clients_mutex);
 }
@@ -80,6 +78,7 @@ void* handle_client(void* arg) {
 
     return NULL;
 }
+
 
 int main() {
     printf("Section A - Server\n");

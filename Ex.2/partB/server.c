@@ -10,7 +10,7 @@
 #include <openssl/evp.h>
 #include <openssl/buffer.h>
 #include <libgen.h>
-#include "../partB/base64.h"
+#include "../base64.h"
 #include <dirent.h>
 #include "server.h"
 #define BUFFER_SIZE 2048

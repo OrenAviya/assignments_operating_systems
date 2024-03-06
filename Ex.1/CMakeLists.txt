@@ -9,8 +9,6 @@ add_executable(untitled "debugExample/divisionByZero.c"
         ../Ex.2/complexClient.c
         ../Ex.2/Base64Decode.c
         ../Ex.2/Base64Encode.c
-        ../Ex.2/partB/base64.h
-        ../Ex.2/partB/base64.c
         ../Ex.2/partB/server.h
 
 
