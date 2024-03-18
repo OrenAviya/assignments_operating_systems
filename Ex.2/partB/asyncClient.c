@@ -21,6 +21,8 @@ int main(int argc, char *argv[]) {
     const char *file_name = argv[2];
     int server_port = 8080;
     const char *server_address = "127.0.0.1";
+    const char *extensions[] = {".jpg", ".jpeg", ".png", ".gif", ".bmp"};
+
 
     // Create client socket
     int client_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -64,29 +66,43 @@ int main(int argc, char *argv[]) {
         printf("file_content: %s\n", file_content);
         printf("file_name: %s\n", file_name);
         snprintf(request, BUFFER_SIZE, "%s %s\n%s", request_type, file_name, file_content);
-    } else {
-        char file_path[BUFFER_SIZE];
-        snprintf(file_path, BUFFER_SIZE, "clientFiles/%s", file_name);
-        printf("file_path: %s\n", file_path);
-        FILE *file = fopen(file_path, "r");
-        if (!file) {
-            perror("Error opening file");
-            exit(EXIT_FAILURE);
+    }
+    else {
+        long unsigned int i;
+        int is_image = 0;
+        for (i = 0; i < sizeof(extensions) / sizeof(extensions[0]); ++i) {
+            if (strstr(file_name, extensions[i]) != NULL) {
+                is_image = 1;
+                break;
+            }
+        }
+        if (is_image) {
+            snprintf(request, BUFFER_SIZE, "%s %s\n", request_type, file_name);
+        } else {
+            char file_path[BUFFER_SIZE];
+            snprintf(file_path, BUFFER_SIZE, "clientFiles/%s", file_name);
+            printf("file_path: %s\n", file_path);
+            FILE *file = fopen(file_path, "r");
+            if (!file) {
+                perror("Error opening file");
+                exit(EXIT_FAILURE);
+            }
+
+            // Read the file content
+            fseek(file, 0, SEEK_END);
+            long file_size = ftell(file);
+            rewind(file);
+            char file_content[file_size + 1];
+            fread(file_content, 1, file_size, file);
+            fclose(file);
+            file_content[file_size] = '\0';
+
+            printf("file_content: %s\n", file_content);
+            printf("file_name: %s\n", file_name);
+            snprintf(request, BUFFER_SIZE, "%s %s\n%s", request_type, file_name, file_content);
         }
 
-        // Read the file content
-        fseek(file, 0, SEEK_END);
-        long file_size = ftell(file);
-        rewind(file);
-        char file_content[file_size + 1];
-        fread(file_content, 1, file_size, file);
-        fclose(file);
-        file_content[file_size] = '\0';
-
-        printf("file_content: %s\n", file_content);
-        printf("file_name: %s\n", file_name);
-        snprintf(request, BUFFER_SIZE, "%s %s\n%s", request_type, file_name, file_content);
-    }
+}
 
     // Send the request to the server
     send_request(client_socket, request);
