@@ -188,7 +188,7 @@ handle_post_request(int client_socket, const char *remote_path, const char *root
 //
 //}
 
-// TODO
+
 void handle_file_post_request(int client_socket, const char *remote_path, const char *root_directory,
                               const char *file_content, size_t content_length) {
     printf("remote: %s\n", remote_path);
@@ -301,7 +301,12 @@ void handle_get_request(int client_socket, const char *root_directory, const cha
         printf("handle image\n");
 //        handle_image_get_request(client_socket, remote_path, root_directory);
     } else {
-        handle_file_get_request(client_socket, root_directory, remote_path);
+        if (strstr(remote_path, ".list") != NULL) {
+            handle_list_get_request(client_socket, root_directory, remote_path);
+        } else {
+            handle_file_get_request(client_socket, root_directory, remote_path);
+        }
+
     }
 }
 
@@ -377,7 +382,34 @@ void handle_file_get_request(int client_socket, const char *root_directory, cons
     printf("File saved successfully to: %s\n", new_filename);
 }
 
+void handle_list_get_request(int client_socket, const char *root_directory, const char *remote_path) {
+    // Open the list file
+    printf("remote_path: %s\n", remote_path);
+    FILE *list_file = fopen(remote_path, "r");
+    if (list_file == NULL) {
+        perror("Error opening list file");
+        return;
+    }
+    printf("The list file opened %p\n", list_file);
 
+    char line[256]; // Assuming a maximum line length of 255 characters
+
+    while (fgets(line, sizeof(line), list_file) != NULL) {
+        // Remove the newline character, if present
+        line[strcspn(line, "\n")] = '\0';
+        // Now line contains the file name
+        char file_path[512];
+        snprintf(file_path, sizeof(file_path), "%s", line);
+        printf("The file_path: %s\n", file_path);
+
+        // Call handle_file_post_request with appropriate parameters
+        handle_file_get_request(client_socket, root_directory, line);
+
+    }
+    printf("close the list file\n");
+
+    fclose(list_file);
+}
 void send_response(int client_socket, const char *response) {
     send(client_socket, response, strlen(response), 0);
 }
