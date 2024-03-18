@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
     char *textin = readFile(dst_file, &length);
     if (textin != NULL) {
         // prints for checking...
-            // printf("Text in content:%s\n", textin);
+             printf("Text in content:%s\n", textin);
             // printf("File length:%zu\n", length);
     } else {
         printf("Error: textin is NULL");
@@ -58,6 +58,8 @@ int main(int argc, char* argv[]) {
 
     printf("Decoding successful\n");
     writeToFile(src_file, textout);
+
+    printf("decode text is: %s\n", textout);
 
     // checking ourselves:
     /*size_t len;

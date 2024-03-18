@@ -11,9 +11,11 @@
 
 // Structure to represent each socket and its corresponding handler
 struct SocketHandler {
-    int socket;
-    ProactorHandler handler;
-    struct SocketHandler* next;
+    int socket; // the socket file descriptor
+    ProactorHandler handler; //  a function pointer to a ProactorHandler function
+    struct SocketHandler* next; //a pointer to the next SocketHandler struct in a linked list.
+
+
 };
 
 // Global variables for managing the linked list of sockets and handlers

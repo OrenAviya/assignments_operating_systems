@@ -6,7 +6,7 @@ decode:	encriptor.h decode.c libencriptor
 encode:	encriptor.h encode.c libencriptor
 	gcc encode.c -L. -lencriptor -o encode
 
-libencriptor:	encriptor.h encriptor.c
+libencriptor: encriptor.h encriptor.c
 	gcc -shared encriptor.c -fPIC -o libencriptor.so
 
 .PHONY: clean

@@ -13,8 +13,8 @@
 #include "../base64.h"
 #include <dirent.h>
 #include "server.h"
-#define BUFFER_SIZE 2048
 
+#define BUFFER_SIZE 2048
 
 
 int main(int argc, char *argv[]) {
@@ -91,226 +91,291 @@ void handle_request(int client_socket, const char *root_directory) {
 
     buffer[received] = '\0';
 
-    if (strstr(buffer, "GET") == buffer) {
-        char remote_path[BUFFER_SIZE];
-        sscanf(buffer, "GET %s", remote_path);
-        handle_get_request(client_socket, remote_path, root_directory);
-    } else if (strstr(buffer, "POST") == buffer) {
-        char remote_path[BUFFER_SIZE];
-        sscanf(buffer, "POST %s", remote_path);
-        printf("Remote path: %s\n", remote_path);
-        handle_post_request(client_socket, remote_path, root_directory);
+    char request_type[BUFFER_SIZE];
+    char filename[BUFFER_SIZE];
+
+    // Parse the buffer to extract request type and filename
+    if (sscanf(buffer, "%s %s", request_type, filename) != 2) {
+        send_response(client_socket, "400 BAD REQUEST\n");
+        close(client_socket);
+        return;
+    }
+
+    printf("Request Type: %s\n", request_type);
+    printf("Filename: %s\n", filename);
+
+    if (strcmp(request_type, "GET") == 0) {
+        // Handle GET request
+        printf("Handle GET request\n");
+        handle_get_request(client_socket, root_directory, filename);
+
+    } else if (strcmp(request_type, "POST") == 0) {
+        // Handle POST request
+        printf("Handle POST request\n");
+
+        // Find the start of the content
+        char *content_start = strstr(buffer, "\n");
+        if (content_start == NULL) {
+            send_response(client_socket, "400 BAD REQUEST\n");
+            close(client_socket);
+            return;
         }
-    else {
+        content_start += 1; // move past "\n"
+
+        // Extract content length
+        int content_length = received - (content_start - buffer);
+
+        // Allocate memory for content
+        char *file_content = malloc(content_length + 1);
+        if (file_content == NULL) {
+            send_response(client_socket, "500 INTERNAL ERROR\n");
+            close(client_socket);
+            return;
+        }
+
+        // Copy content from buffer
+        strncpy(file_content, content_start, content_length);
+        file_content[content_length] = '\0';
+
+        printf("File Content: %s\n", file_content);
+
+        // Handle post request with content
+        handle_post_request(client_socket, filename, root_directory, file_content, content_length);
+
+        free(file_content);
+    } else {
         send_response(client_socket, "500 INTERNAL ERROR\n");
         close(client_socket);
         return;
     }
 
     close(client_socket);
-
-    }
-
-
-
-// ********************************* Handle GET request *********************************  //
-void handle_get_request(int client_socket, const char *remote_path, const char *root_directory) {
-    printf("Handle GET request...\n");
-    char full_path[BUFFER_SIZE];
-    snprintf(full_path, sizeof(full_path), "%s%s", root_directory, remote_path);
-    printf("Path: %s\n", full_path);
-
-    if (strstr(remote_path, ".list") != NULL) {
-        handle_file_list_request(client_socket, full_path, root_directory, "GET");
-    } else {
-        handle_regular_file_request(client_socket, full_path,root_directory, "GET");
-    }
-    printf("GET request handled! \n\n");
 }
 
-void handle_file_list_request(int client_socket, const char *full_path, const char *root_directory, char* type_request) {
-    printf("Client requests a list of files.\n");
-    FILE *file_list = fopen(full_path, "r");
-    if (file_list == NULL) {
-        send_response(client_socket, "404 FILE LIST NOT FOUND");
-        printf("Message for client: 404 FILE LIST NOT FOUND\n");
-        return;
-    }
 
-    char file_name[BUFFER_SIZE];
-    while (fgets(file_name, BUFFER_SIZE, file_list) != NULL) {
-        trim_newline(file_name);
-        char *file_path = construct_file_path(root_directory, file_name);
-        if (file_path != NULL) {
-            if (strcmp(type_request, "GET") == 0){
-                process_file_for_get(client_socket, file_path);
-            } else {
-                process_file_for_post(client_socket, file_path, root_directory);
-            }
-            free(file_path);
+int is_image(const char *path) {
+    const char *extensions[] = {".jpg", ".jpeg", ".png", ".gif", ".bmp"};
+    for (size_t i = 0; i < sizeof(extensions) / sizeof(extensions[0]); i++) {
+        if (strstr(path, extensions[i]) != NULL) {
+            return 1;
         }
     }
-
-    fclose(file_list);
-}
-
-void handle_regular_file_request(int client_socket, const char *full_path,const char* root_directory, char* type_request) {
-    FILE *file = fopen(full_path, "rb");
-    if (file != NULL) {
-        if (strcmp(type_request, "GET")) {
-            process_file_for_get(client_socket, full_path);
-        } else {
-            process_file_for_post(client_socket, full_path,root_directory);
-        }
-        fclose(file);
-    } else {
-        send_response(client_socket, "404 FILE NOT FOUND");
-        printf("Message for client: 404 FILE NOT FOUND\n");
-    }
-}
-
-void process_file_for_get(int client_socket, const char *file_path) {
-    FILE *file = fopen(file_path, "rb");
-    if (file != NULL) {
-        flock(fileno(file), LOCK_EX);
-
-        fseek(file, 0, SEEK_END);
-        long file_size = ftell(file);
-        fseek(file, 0, SEEK_SET);
-
-        char *contents = malloc(file_size + 1);
-        if (contents != NULL) {
-            fread(contents, 1, file_size, file);
-            contents[file_size] = '\0';
-
-            flock(fileno(file), LOCK_UN);
-            fclose(file);
-
-            char *decoded_content;
-            Base64Decode(contents, &decoded_content);
-
-            send_response(client_socket, "200 OK\n");
-            send(client_socket, decoded_content, strlen(decoded_content), 0);
-
-            // Save the decoded content as a new file in "clientFiles" folder
-            char *file_name = basename((char *)file_path); // casting away constness
-            char *client_file_path = malloc(strlen("clientFiles/") + strlen(file_name) + 1);
-            if (client_file_path != NULL) {
-                snprintf(client_file_path, strlen("clientFiles/") + strlen(file_name) + 1, "clientFiles/%s", file_name);
-                FILE *client_file = fopen(client_file_path, "wb");
-                if (client_file != NULL) {
-                    fwrite(decoded_content, 1, strlen(decoded_content), client_file);
-                    fclose(client_file);
-                    printf("Saved file '%s' in clientFiles folder.\n", file_name);
-                } else {
-                    printf("Error: Couldn't save file '%s' in clientFiles folder.\n", file_name);
-                }
-                free(client_file_path);
-            } else {
-                perror("Error allocating memory for client_file_path");
-            }
-
-            free(contents);
-            free(decoded_content);
-            printf("\n");
-        } else {
-            perror("Error allocating memory for file contents");
-            send_response(client_socket, "500 INTERNAL SERVER ERROR");
-            fclose(file);
-        }
-    } else {
-        printf("File '%s' not found.\n", file_path);
-    }
-}
-
-char *construct_file_path(const char *root_directory, const char *file_name) {
-    char *file_path = malloc(strlen(root_directory) + strlen(file_name) + 2);
-    if (file_path != NULL) {
-        snprintf(file_path, strlen(root_directory) + strlen(file_name) + 2, "%s/%s", root_directory, file_name);
-    } else {
-        perror("Error allocating memory for file_path");
-    }
-    return file_path;
-}
-
-void trim_newline(char *str) {
-    size_t length = strlen(str);
-    if (str[length - 1] == '\n') {
-        str[length - 1] = '\0';
-    }
+    return 0;
 }
 
 // ********************************* Handle POST request *********************************  //
 
-void handle_post_request(int client_socket, const char *remote_path, const char *root_directory) {
-    printf("Handle POST request...\n");
-    char full_path[BUFFER_SIZE];
-    snprintf(full_path, sizeof(full_path), "%s%s", root_directory, remote_path);
-
-    if (strstr(remote_path, ".list") != NULL) {
-        handle_file_list_request(client_socket, full_path, root_directory, "POST");
+// TODO
+void
+handle_post_request(int client_socket, const char *remote_path, const char *root_directory, const char *file_content,
+                    size_t content_length) {
+    if (is_image(remote_path)) {
+        //TODO
+        printf("handle image\n");
+//        handle_image_post_request(client_socket, remote_path, root_directory);
     } else {
-        handle_regular_file_request(client_socket, full_path,root_directory, "POST");
-    }
-    printf("POST request handled! \n\n");
-}
-
-void process_file_for_post(int client_socket, const char *file_path, const char* root_directory) {
-    FILE *file = fopen(file_path, "rb");
-    if (file != NULL) {
-        flock(fileno(file), LOCK_EX);
-
-        fseek(file, 0, SEEK_END);
-        long file_size = ftell(file);
-        fseek(file, 0, SEEK_SET);
-
-        char *contents = malloc(file_size + 1);
-        if (contents != NULL) {
-            fread(contents, 1, file_size, file);
-            contents[file_size] = '\0';
-
-            flock(fileno(file), LOCK_UN);
-            fclose(file);
-
-            char *encoded_content;
-            Base64Encode(contents, &encoded_content);
-
-
-            send_response(client_socket, "200 OK\n");
-            send(client_socket, encoded_content, strlen(encoded_content), 0);
-
-            // Save the encoded content as a new file in the root directory
-            char *file_name = basename((char *)file_path);
-            char *new_file_name = malloc(strlen(root_directory) + strlen("/") + strlen(file_name) + strlen("_encoded") + 1);
-            if (new_file_name != NULL) {
-                sprintf(new_file_name, "%s/%s_encoded", root_directory, file_name);
-
-                FILE *new_file = fopen(new_file_name, "wb");
-                if (new_file != NULL) {
-                    fwrite(encoded_content, 1, strlen(encoded_content), new_file);
-                    fclose(new_file);
-                    printf("Saved file '%s' in '%s' directory.\n", new_file_name, root_directory);
-                } else {
-                    printf("Error: Couldn't save file '%s' in '%s' directory.\n", new_file_name, root_directory);
-                }
-                free(new_file_name);
-            } else {
-                printf("Error: Couldn't allocate memory for new file name.\n");
-            }
-
-            free(encoded_content);
-            free(contents);
-            printf("\n");
+        if (strstr(remote_path, ".list") != NULL) {
+            handle_list_post_request(client_socket, remote_path, root_directory);
         } else {
-            perror("Error allocating memory for file contents");
-            send_response(client_socket, "500 INTERNAL SERVER ERROR");
-            fclose(file);
+            handle_file_post_request(client_socket, remote_path, root_directory, file_content, content_length);
         }
-    } else {
-        printf("File '%s' not found.\n", file_path);
     }
 }
 
+
+// TODO
+//void handle_image_post_request(client_socket, remote_path, root_directory) {
+//
+//}
+
+// TODO
+void handle_file_post_request(int client_socket, const char *remote_path, const char *root_directory,
+                              const char *file_content, size_t content_length) {
+    printf("remote: %s\n", remote_path);
+    // Set the name of the new file to "encoded_file"
+    char *new_name;
+    char *str_copy = strdup(remote_path);
+    new_name = strtok(str_copy, ".");
+    char new_file_path[BUFFER_SIZE];
+    snprintf(new_file_path, BUFFER_SIZE, "%s/encoded_%s.txt", root_directory, new_name);
+
+    // Open a new file with the generated file name
+    FILE *new_file = fopen(new_file_path, "wb");
+    if (new_file == NULL) {
+        perror("Error opening file for writing");
+        send_response(client_socket, "500 INTERNAL SERVER ERROR\n");
+        return;
+    }
+
+    // Acquire an exclusive lock on the new file
+    if (flock(fileno(new_file), LOCK_EX) == -1) {
+        perror("Error acquiring lock on file");
+        send_response(client_socket, "500 INTERNAL SERVER ERROR\n");
+        fclose(new_file);
+        return;
+    }
+    printf("file_content: %s\n", file_content);
+
+    char *encoded_content;
+    Base64Encode(file_content, &encoded_content);
+    // Write the content of the file into the newly created file
+    fwrite(encoded_content, 1, content_length, new_file);
+
+    // Release the lock and close the file
+    if (flock(fileno(new_file), LOCK_UN) == -1) {
+        perror("Error releasing lock on file");
+        send_response(client_socket, "500 INTERNAL SERVER ERROR\n");
+        fclose(new_file);
+        return;
+    }
+
+    // Close the file
+    fclose(new_file);
+
+    // Send a response to the client indicating success
+    send_response(client_socket, "200 OK\n");
+}
+
+
+void handle_list_post_request(int client_socket, const char *remote_path, const char *root_directory) {
+    // Open the list file
+    printf("remote_path: %s\n", remote_path);
+    FILE *list_file = fopen(remote_path, "r");
+    if (list_file == NULL) {
+        perror("Error opening list file");
+        return;
+    }
+    printf("The list file opened %p\n", list_file);
+
+    char line[256]; // Assuming a maximum line length of 255 characters
+
+    while (fgets(line, sizeof(line), list_file) != NULL) {
+        // Remove the newline character, if present
+        line[strcspn(line, "\n")] = '\0';
+        // Now line contains the file name
+        char file_path[512];
+        snprintf(file_path, sizeof(file_path), "clientFiles/%s", line);
+        printf("The file_path: %s\n", file_path);
+        // Open the file to read its content
+        FILE *file = fopen(file_path, "r");
+        if (file == NULL) {
+            perror("Error opening file");
+            continue; // Move to the next file
+        }
+        printf("The file %p opened\n", file);
+
+        // Determine the file size
+        fseek(file, 0, SEEK_END);
+        size_t file_size = ftell(file);
+        rewind(file);
+
+        // Read the file content
+        char *file_content = (char *)malloc(file_size + 1);
+        if (file_content == NULL) {
+            perror("Memory allocation error");
+            fclose(file);
+            continue; // Move to the next file
+        }
+        fread(file_content, 1, file_size, file);
+        file_content[file_size] = '\0'; // Null-terminate the content
+
+        fclose(file);
+
+        // Call handle_file_post_request with appropriate parameters
+        handle_file_post_request(client_socket, line, root_directory, file_content, file_size);
+
+        // Free dynamically allocated memory for file_content
+        free(file_content);
+    }
+    printf("close the list file\n");
+
+    fclose(list_file);
+}
+
+
+// ********************************* Handle GET request *********************************  //
+void handle_get_request(int client_socket, const char *root_directory, const char *remote_path) {
+
+    if (is_image(remote_path)) {
+        //TODO
+        printf("handle image\n");
+//        handle_image_get_request(client_socket, remote_path, root_directory);
+    } else {
+        handle_file_get_request(client_socket, root_directory, remote_path);
+    }
+}
+
+
+void handle_file_get_request(int client_socket, const char *root_directory, const char *remote_path) {
+    // Construct the full path to the remote file
+    char full_path[256];
+    snprintf(full_path, sizeof(full_path), "%s/%s", root_directory, remote_path);
+
+    // Open the remote file for reading
+    FILE *remote_file = fopen(full_path, "rb");
+    if (remote_file == NULL) {
+        perror("Error opening remote file");
+        exit(EXIT_FAILURE);
+    }
+
+    // Determine the size of the remote file
+    fseek(remote_file, 0, SEEK_END);
+    long file_size = ftell(remote_file);
+    rewind(remote_file);
+
+    // Allocate memory to store the file content
+    char *file_content = (char *) malloc(file_size + 1);
+    if (file_content == NULL) {
+        perror("Error allocating memory");
+        fclose(remote_file);
+        exit(EXIT_FAILURE);
+    }
+
+    // Read the content of the remote file
+    size_t bytes_read = fread(file_content, 1, file_size, remote_file);
+    if ((size_t) bytes_read != (size_t) file_size) {
+        perror("Error reading remote file");
+        fclose(remote_file);
+        free(file_content);
+        exit(EXIT_FAILURE);
+    }
+
+    // Close the remote file
+    fclose(remote_file);
+
+    // Null-terminate the file content
+    file_content[file_size] = '\0';
+
+    // Decode the file content if necessary
+    char *decoded_content;
+    Base64Decode(file_content, &decoded_content);
+
+    // Construct the path for the new file
+    char new_filename[256];
+    snprintf(new_filename, sizeof(new_filename), "clientFiles/%s", remote_path);
+
+    // Open the new file for writing
+    FILE *new_file = fopen(new_filename, "wb");
+    if (new_file == NULL) {
+        perror("Error opening new file");
+        free(decoded_content);
+        free(file_content);
+        exit(EXIT_FAILURE);
+    }
+
+    // Write the decoded content to the new file
+    fwrite(decoded_content, sizeof(char), strlen(decoded_content), new_file);
+
+    // Close the new file
+    fclose(new_file);
+
+    // Free the allocated memory
+    free(decoded_content);
+    free(file_content);
+
+    send_response(client_socket, "200 OK\n");
+    printf("File saved successfully to: %s\n", new_filename);
+}
 
 
 void send_response(int client_socket, const char *response) {

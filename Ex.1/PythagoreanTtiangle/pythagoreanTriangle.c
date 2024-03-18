@@ -24,7 +24,7 @@ int main() {
             printf("Angles in radians: A=%.4f, B=%.4f, C=%.4f\n", angleA, angleB, angleC);
         } else {
             // Not a Pythagorean triangle
-            printf("Error\n");
+            printf("Not a Pythagorean triangle\n");
             return 1; // Exit with an error code
         }
     } else {

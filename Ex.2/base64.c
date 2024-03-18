@@ -43,6 +43,7 @@ int Base64Decode(char* b64message, char** buffer) { //Decodes a base64 encoded s
 }
 
 int Base64Encode(const char* message, char** buffer) { //Encodes a string to base64
+    printf("message is: %s\n",message);
     BIO *bio, *b64;
     FILE* stream;
     int encodedSize = 4*ceil((double)strlen(message)/3);

@@ -1,6 +1,3 @@
-//
-// Created by ofir on 2/28/24.
-//
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,7 +42,51 @@ int main(int argc, char *argv[]) {
 
     // Construct the request
     char request[BUFFER_SIZE];
-    snprintf(request, BUFFER_SIZE, "%s %s", request_type, file_name);
+    if (strstr(file_name, ".list") != NULL) {
+        char file_path[BUFFER_SIZE];
+        snprintf(file_path, BUFFER_SIZE, "%s", file_name);
+        printf("file_path: %s\n", file_path);
+        FILE *file = fopen(file_path, "r");
+        if (!file) {
+            perror("Error opening file");
+            exit(EXIT_FAILURE);
+        }
+
+        // Read the file content
+        fseek(file, 0, SEEK_END);
+        long file_size = ftell(file);
+        rewind(file);
+        char file_content[file_size + 1];
+        fread(file_content, 1, file_size, file);
+        fclose(file);
+        file_content[file_size] = '\0';
+
+        printf("file_content: %s\n", file_content);
+        printf("file_name: %s\n", file_name);
+        snprintf(request, BUFFER_SIZE, "%s %s\n%s", request_type, file_name, file_content);
+    } else {
+        char file_path[BUFFER_SIZE];
+        snprintf(file_path, BUFFER_SIZE, "clientFiles/%s", file_name);
+        printf("file_path: %s\n", file_path);
+        FILE *file = fopen(file_path, "r");
+        if (!file) {
+            perror("Error opening file");
+            exit(EXIT_FAILURE);
+        }
+
+        // Read the file content
+        fseek(file, 0, SEEK_END);
+        long file_size = ftell(file);
+        rewind(file);
+        char file_content[file_size + 1];
+        fread(file_content, 1, file_size, file);
+        fclose(file);
+        file_content[file_size] = '\0';
+
+        printf("file_content: %s\n", file_content);
+        printf("file_name: %s\n", file_name);
+        snprintf(request, BUFFER_SIZE, "%s %s\n%s", request_type, file_name, file_content);
+    }
 
     // Send the request to the server
     send_request(client_socket, request);

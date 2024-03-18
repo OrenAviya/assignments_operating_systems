@@ -2,8 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include<errno.h>
-#include <time.h>  // Add this line
+#include <errno.h>
 
 void error(const char *msg) {
     perror(msg);

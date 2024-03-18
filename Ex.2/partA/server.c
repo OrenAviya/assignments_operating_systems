@@ -182,6 +182,8 @@ void handle_post_request(int client_socket, const char *remote_path, const char 
 
     FILE *file = fopen(full_path, "rb");
     if (file != NULL) {
+        flock(fileno(file), LOCK_EX);
+
         fseek(file, 0, SEEK_END);
         long file_size = ftell(file);
         fseek(file, 0, SEEK_SET);
@@ -189,6 +191,8 @@ void handle_post_request(int client_socket, const char *remote_path, const char 
         char *contents = (char *)malloc(file_size + 1); // Extra byte for null terminator
         fread(contents, 1, file_size, file);
         contents[file_size] = '\0'; // Null terminate the string
+
+        flock(fileno(file), LOCK_UN);
         fclose(file);
 
         // Encode the content

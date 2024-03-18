@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
     char *textout = (char *)malloc(length + 1);
 
     // Check if memory allocation was successful
-    printf("textout: \n", textout);
+//    printf("textout: %s\n", textout);
 
     // Encode the textin using the encode function
     int result = encode(textin, textout, length, codec);
