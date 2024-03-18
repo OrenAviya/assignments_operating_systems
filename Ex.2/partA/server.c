@@ -134,7 +134,6 @@ void handle_request(int client_socket, const char *root_directory) {
 
     close(client_socket);
 }
-
 void handle_get_request(int client_socket, const char *remote_path, const char *root_directory) {
     char full_path[BUFFER_SIZE];
     snprintf(full_path, sizeof(full_path), "%s%s", root_directory, remote_path);
@@ -159,10 +158,19 @@ void handle_get_request(int client_socket, const char *remote_path, const char *
         char *decoded_content;
         Base64Decode(contents, &decoded_content);
 
-        // Send both the encoded and decoded content back to the client
-        send_response(client_socket, "200 OK\n");
-        // Sending decoded content
-        send(client_socket, decoded_content, strlen(decoded_content), 0);
+        // Create new file with decoded content
+        char new_file_path[BUFFER_SIZE];
+        snprintf(new_file_path, sizeof(new_file_path), "%s/decoded_%s", root_directory, basename((char *)remote_path));
+
+        FILE *new_file = fopen(new_file_path, "wb");
+        if (new_file != NULL) {
+            fwrite(decoded_content, strlen(decoded_content), 1, new_file);
+            fclose(new_file);
+            printf("File '%s' decoded and saved successfully as '%s'.\n", remote_path, new_file_path);
+            send_response(client_socket, "200 OK\n");
+        } else {
+            send_response(client_socket, "500 INTERNAL SERVER ERROR");
+        }
 
         free(contents);
         free(decoded_content);
@@ -170,8 +178,6 @@ void handle_get_request(int client_socket, const char *remote_path, const char *
         send_response(client_socket, "404 FILE NOT FOUND");
     }
 }
-
-
 
 void handle_post_request(int client_socket, const char *remote_path, const char *root_directory) {
     printf("Handle post request...\n");
