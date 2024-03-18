@@ -107,42 +107,51 @@ void handle_request(int client_socket, const char *root_directory) {
     if (strcmp(request_type, "GET") == 0) {
         // Handle GET request
         printf("Handle GET request\n");
-        handle_get_request(client_socket, root_directory, filename);
+        if (is_image(remote_path)) {
+            handle_image_get_request(); //TODO
+        } else {
+            handle_get_request(client_socket, root_directory, filename);
+
+        }
+
 
     } else if (strcmp(request_type, "POST") == 0) {
         // Handle POST request
         printf("Handle POST request\n");
+        if (is_image(remote_path)) {
+            handle_image_post_request(); // TODO
+        } else {
+            // Find the start of the content
+            char *content_start = strstr(buffer, "\n");
+            if (content_start == NULL) {
+                send_response(client_socket, "400 BAD REQUEST\n");
+                close(client_socket);
+                return;
+            }
+            content_start += 1; // move past "\n"
 
-        // Find the start of the content
-        char *content_start = strstr(buffer, "\n");
-        if (content_start == NULL) {
-            send_response(client_socket, "400 BAD REQUEST\n");
-            close(client_socket);
-            return;
+            // Extract content length
+            int content_length = received - (content_start - buffer);
+
+            // Allocate memory for content
+            char *file_content = malloc(content_length + 1);
+            if (file_content == NULL) {
+                send_response(client_socket, "500 INTERNAL ERROR\n");
+                close(client_socket);
+                return;
+            }
+
+            // Copy content from buffer
+            strncpy(file_content, content_start, content_length);
+            file_content[content_length] = '\0';
+
+            printf("File Content: %s\n", file_content);
+
+            // Handle post request with content
+            handle_post_request(client_socket, filename, root_directory, file_content, content_length);
+
+            free(file_content);
         }
-        content_start += 1; // move past "\n"
-
-        // Extract content length
-        int content_length = received - (content_start - buffer);
-
-        // Allocate memory for content
-        char *file_content = malloc(content_length + 1);
-        if (file_content == NULL) {
-            send_response(client_socket, "500 INTERNAL ERROR\n");
-            close(client_socket);
-            return;
-        }
-
-        // Copy content from buffer
-        strncpy(file_content, content_start, content_length);
-        file_content[content_length] = '\0';
-
-        printf("File Content: %s\n", file_content);
-
-        // Handle post request with content
-        handle_post_request(client_socket, filename, root_directory, file_content, content_length);
-
-        free(file_content);
     } else {
         send_response(client_socket, "500 INTERNAL ERROR\n");
         close(client_socket);
@@ -165,21 +174,17 @@ int is_image(const char *path) {
 
 // ********************************* Handle POST request *********************************  //
 
-// TODO
+
 void
 handle_post_request(int client_socket, const char *remote_path, const char *root_directory, const char *file_content,
                     size_t content_length) {
-    if (is_image(remote_path)) {
-        //TODO
-        printf("handle image\n");
-//        handle_image_post_request(client_socket, remote_path, root_directory);
+
+    if (strstr(remote_path, ".list") != NULL) {
+        handle_list_post_request(client_socket, remote_path, root_directory);
     } else {
-        if (strstr(remote_path, ".list") != NULL) {
-            handle_list_post_request(client_socket, remote_path, root_directory);
-        } else {
-            handle_file_post_request(client_socket, remote_path, root_directory, file_content, content_length);
-        }
+        handle_file_post_request(client_socket, remote_path, root_directory, file_content, content_length);
     }
+
 }
 
 
@@ -270,7 +275,7 @@ void handle_list_post_request(int client_socket, const char *remote_path, const 
         rewind(file);
 
         // Read the file content
-        char *file_content = (char *)malloc(file_size + 1);
+        char *file_content = (char *) malloc(file_size + 1);
         if (file_content == NULL) {
             perror("Memory allocation error");
             fclose(file);
@@ -296,18 +301,12 @@ void handle_list_post_request(int client_socket, const char *remote_path, const 
 // ********************************* Handle GET request *********************************  //
 void handle_get_request(int client_socket, const char *root_directory, const char *remote_path) {
 
-    if (is_image(remote_path)) {
-        //TODO
-        printf("handle image\n");
-//        handle_image_get_request(client_socket, remote_path, root_directory);
+    if (strstr(remote_path, ".list") != NULL) {
+        handle_list_get_request(client_socket, root_directory, remote_path);
     } else {
-        if (strstr(remote_path, ".list") != NULL) {
-            handle_list_get_request(client_socket, root_directory, remote_path);
-        } else {
-            handle_file_get_request(client_socket, root_directory, remote_path);
-        }
-
+        handle_file_get_request(client_socket, root_directory, remote_path);
     }
+
 }
 
 
@@ -410,6 +409,7 @@ void handle_list_get_request(int client_socket, const char *root_directory, cons
 
     fclose(list_file);
 }
+
 void send_response(int client_socket, const char *response) {
     send(client_socket, response, strlen(response), 0);
 }
