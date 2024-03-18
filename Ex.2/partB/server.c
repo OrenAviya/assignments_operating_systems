@@ -107,51 +107,42 @@ void handle_request(int client_socket, const char *root_directory) {
     if (strcmp(request_type, "GET") == 0) {
         // Handle GET request
         printf("Handle GET request\n");
-        if (is_image(filename)) {
-            handle_image_get_request(client_socket, root_directory, filename);
-        } else {
-            handle_get_request(client_socket, root_directory, filename);
-
-        }
-
+        handle_get_request(client_socket, root_directory, filename);
 
     } else if (strcmp(request_type, "POST") == 0) {
         // Handle POST request
         printf("Handle POST request\n");
-        if (is_image(filename)) {
-            handle_image_post_request(client_socket, root_directory, filename);
-        } else {
-            // Find the start of the content
-            char *content_start = strstr(buffer, "\n");
-            if (content_start == NULL) {
-                send_response(client_socket, "400 BAD REQUEST\n");
-                close(client_socket);
-                return;
-            }
-            content_start += 1; // move past "\n"
 
-            // Extract content length
-            int content_length = received - (content_start - buffer);
-
-            // Allocate memory for content
-            char *file_content = malloc(content_length + 1);
-            if (file_content == NULL) {
-                send_response(client_socket, "500 INTERNAL ERROR\n");
-                close(client_socket);
-                return;
-            }
-
-            // Copy content from buffer
-            strncpy(file_content, content_start, content_length);
-            file_content[content_length] = '\0';
-
-            printf("File Content: %s\n", file_content);
-
-            // Handle post request with content
-            handle_post_request(client_socket, filename, root_directory, file_content, content_length);
-
-            free(file_content);
+        // Find the start of the content
+        char *content_start = strstr(buffer, "\n");
+        if (content_start == NULL) {
+            send_response(client_socket, "400 BAD REQUEST\n");
+            close(client_socket);
+            return;
         }
+        content_start += 1; // move past "\n"
+
+        // Extract content length
+        int content_length = received - (content_start - buffer);
+
+        // Allocate memory for content
+        char *file_content = malloc(content_length + 1);
+        if (file_content == NULL) {
+            send_response(client_socket, "500 INTERNAL ERROR\n");
+            close(client_socket);
+            return;
+        }
+
+        // Copy content from buffer
+        strncpy(file_content, content_start, content_length);
+        file_content[content_length] = '\0';
+
+        printf("File Content: %s\n", file_content);
+
+        // Handle post request with content
+        handle_post_request(client_socket, filename, root_directory, file_content, content_length);
+
+        free(file_content);
     } else {
         send_response(client_socket, "500 INTERNAL ERROR\n");
         close(client_socket);
@@ -174,91 +165,32 @@ int is_image(const char *path) {
 
 // ********************************* Handle POST request *********************************  //
 
-
+// TODO
 void
 handle_post_request(int client_socket, const char *remote_path, const char *root_directory, const char *file_content,
                     size_t content_length) {
-
-    if (strstr(remote_path, ".list") != NULL) {
-        handle_list_post_request(client_socket, remote_path, root_directory);
+    if (is_image(remote_path)) {
+        //TODO
+        printf("handle image\n");
+//        handle_image_post_request(client_socket, remote_path, root_directory);
     } else {
-        handle_file_post_request(client_socket, remote_path, root_directory, file_content, content_length);
+        if (strstr(remote_path, ".list") != NULL) {
+            handle_list_post_request(client_socket, remote_path, root_directory);
+        } else {
+            handle_file_post_request(client_socket, remote_path, root_directory, file_content, content_length);
+        }
     }
-
 }
 
 
-
-void handle_image_post_request(int client_socket, const char *root_directory, const char *filename) {
-    // Open the image file for reading
-    char full_file_path[256];
-    snprintf(full_file_path, sizeof(full_file_path), "clientFiles/%s", filename);
-
-    // Open the image file for reading
-    FILE *image_file = fopen(full_file_path, "rb");
-    if (image_file == NULL) {
-        perror("Error opening image file");
-        return;
-    }
-
-    // Determine the size of the image file
-    fseek(image_file, 0, SEEK_END);
-    long image_size = ftell(image_file);
-    rewind(image_file);
-
-    // Allocate memory to hold the image data
-    unsigned char *image_data = (unsigned char *)malloc(image_size);
-    if (image_data == NULL) {
-        perror("Memory allocation error");
-        fclose(image_file);
-        return;
-    }
-
-    // Read the image data from the file
-    size_t bytes_read = fread(image_data, 1, image_size, image_file);
-    fclose(image_file);
-
-    if ((long)bytes_read != image_size) {
-        perror("Error reading image file");
-        free(image_data);
-        return;
-    }
-
-    // Encode the image data to Base64
-    char *base64_data;
-    if (Base64Encode((const char*)image_data, &base64_data) != 0) {
-        perror("Base64 encoding error");
-        free(image_data);
-        return;
-    }
-    printf("base64_data: %s\n", base64_data);
-
-    free(image_data);
-
-    // Construct the file path in the root directory
-    char file_path[256]; // Adjust the size according to your needs
-    snprintf(file_path, sizeof(file_path), "%s/%s", root_directory, filename);
-
-    // Open a new file for writing the Base64-encoded image data
-    FILE *output_file = fopen(file_path, "wb");
-    if (output_file == NULL) {
-        perror("Error opening output file");
-        free(base64_data);
-        return;
-    }
-
-    // Write the Base64-encoded image data to the output file
-    fprintf(output_file, "%s", base64_data);
-    fclose(output_file);
-    free(base64_data);
-
-    send_response(client_socket, "200 OK");
-    printf("Image successfully saved as Base64 in: %s\n", file_path);
-}
+// TODO
+//void handle_image_post_request(client_socket, remote_path, root_directory) {
+//
+//}
 
 
-
-void handle_file_post_request(int client_socket, const char *remote_path, const char *root_directory,const char *file_content, size_t content_length) {
+void handle_file_post_request(int client_socket, const char *remote_path, const char *root_directory,
+                              const char *file_content, size_t content_length) {
     printf("remote: %s\n", remote_path);
     // Set the name of the new file to "encoded_file"
     char *new_name;
@@ -338,7 +270,7 @@ void handle_list_post_request(int client_socket, const char *remote_path, const 
         rewind(file);
 
         // Read the file content
-        char *file_content = (char *) malloc(file_size + 1);
+        char *file_content = (char *)malloc(file_size + 1);
         if (file_content == NULL) {
             perror("Memory allocation error");
             fclose(file);
@@ -364,12 +296,18 @@ void handle_list_post_request(int client_socket, const char *remote_path, const 
 // ********************************* Handle GET request *********************************  //
 void handle_get_request(int client_socket, const char *root_directory, const char *remote_path) {
 
-    if (strstr(remote_path, ".list") != NULL) {
-        handle_list_get_request(client_socket, root_directory, remote_path);
+    if (is_image(remote_path)) {
+        //TODO
+        printf("handle image\n");
+//        handle_image_get_request(client_socket, remote_path, root_directory);
     } else {
-        handle_file_get_request(client_socket, root_directory, remote_path);
-    }
+        if (strstr(remote_path, ".list") != NULL) {
+            handle_list_get_request(client_socket, root_directory, remote_path);
+        } else {
+            handle_file_get_request(client_socket, root_directory, remote_path);
+        }
 
+    }
 }
 
 
@@ -420,7 +358,7 @@ void handle_file_get_request(int client_socket, const char *root_directory, cons
     // Construct the path for the new file
     char new_filename[256];
     snprintf(new_filename, sizeof(new_filename), "clientFiles/%s", remote_path);
-    printf("remote_path: %s\n", remote_path);
+
     // Open the new file for writing
     FILE *new_file = fopen(new_filename, "wb");
     if (new_file == NULL) {
@@ -472,80 +410,6 @@ void handle_list_get_request(int client_socket, const char *root_directory, cons
 
     fclose(list_file);
 }
-
-void handle_image_get_request(int client_socket, const char *root_directory, const char *filename) {
-    printf("in the handle_image_get_request\n ");
-    // Construct the full file path
-    char full_file_path[256]; // Adjust the size according to your needs
-    snprintf(full_file_path, sizeof(full_file_path), "%s/%s", root_directory, filename);
-
-    // Open the file for reading
-    FILE *input_file = fopen(full_file_path, "rb");
-    if (input_file == NULL) {
-        perror("Error opening input file");
-        return;
-    }
-
-    // Determine the size of the input file
-    fseek(input_file, 0, SEEK_END);
-    long file_size = ftell(input_file);
-    rewind(input_file);
-
-    // Allocate memory to hold the Base64-encoded image data
-    char *base64_data = (char *)malloc(file_size + 1); // Add 1 for null terminator
-    if (base64_data == NULL) {
-        perror("Memory allocation error");
-        fclose(input_file);
-        return;
-    }
-
-    // Read the Base64-encoded image data from the file
-    size_t bytes_read = fread(base64_data, 1, file_size, input_file);
-    fclose(input_file);
-
-
-    if ((long)bytes_read != file_size) {
-        perror("Error reading input file");
-        free(base64_data);
-        return;
-    }
-
-    // Null-terminate the base64 data
-    base64_data[bytes_read] = '\0';
-
-    // Decode the Base64-encoded data back to the original image
-    char *image_data;
-    if (Base64Decode(base64_data, &image_data) != 0) {
-        perror("Base64 decoding error");
-        free(base64_data);
-        return;
-    }
-    printf("base64_data: %s\n", base64_data);
-    printf("image_data: %s\n", image_data);
-
-    free(base64_data);
-
-    // Construct the file path for saving the decoded image
-    char output_file_path[256]; // Adjust the size according to your needs
-    snprintf(output_file_path, sizeof(output_file_path), "clientFiles/new_%s",  filename);
-
-    // Open a new file for writing the decoded image
-    FILE *output_file = fopen(output_file_path, "wb");
-    if (output_file == NULL) {
-        perror("Error opening output file");
-        free(image_data);
-        return;
-    }
-
-    // Write the decoded image data to the output file
-    fwrite(image_data, 1, strlen(image_data), output_file);
-    fclose(output_file);
-    free(image_data);
-
-    send_response(client_socket, "200 OK");
-    printf("Image successfully saved in: %s\n", output_file_path);
-}
-
 void send_response(int client_socket, const char *response) {
     send(client_socket, response, strlen(response), 0);
 }
