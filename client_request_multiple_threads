@@ -1,0 +1,128 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <math.h>
+#include <fstream>
+#include <vector>
+#include <mutex>
+
+#define NUM_THREADS 5
+#define BUFFER_SIZE 256
+#define FILENAME "results.txt"
+
+// Structure to represent an ellipse
+struct Ellipse {
+    int x_focus;
+    int y_focus;
+    int radius;
+};
+
+// Global variables
+std::vector<Ellipse> ellipses;
+std::mutex ellipses_mutex;
+
+// Function to calculate the area covered by all ellipses using Monte Carlo
+double calculate_area() {
+    // Implement the Monte Carlo algorithm to calculate area covered by ellipses
+    // Simulated computation delay
+    sleep(5);
+    return 0.0;  // Placeholder value, actual implementation required
+}
+
+// Function to handle client requests
+void *handle_client_request(void *arg) {
+    int client_socket = *((int *)arg);
+    char buffer[BUFFER_SIZE];
+
+    // Receive ellipse data from client
+    ssize_t bytes_received = recv(client_socket, buffer, BUFFER_SIZE, 0);
+    if (bytes_received < 0) {
+        perror("recv failed");
+        close(client_socket);
+        pthread_exit(NULL);
+    }
+
+    // Null terminate the received data
+    buffer[bytes_received] = '\0';
+
+    // Parse ellipse data from received buffer
+    Ellipse ellipse;
+    sscanf(buffer, "%d %d %d", &ellipse.x_focus, &ellipse.y_focus, &ellipse.radius);
+
+    // Add the received ellipse to the list
+    ellipses_mutex.lock();
+    ellipses.push_back(ellipse);
+    ellipses_mutex.unlock();
+
+    // Calculate area covered by all ellipses and write to file
+    double area = calculate_area();
+    std::ofstream outfile(FILENAME, std::ios_base::app);
+    if (outfile.is_open()) {
+        outfile << "Area covered by ellipses: " << area << std::endl;
+        outfile.close();
+    } else {
+        perror("Failed to open file");
+    }
+
+    // Send response to client
+    const char *response = "Area calculated successfully";
+    send(client_socket, response, strlen(response), 0);
+
+    // Close client socket and exit thread
+    close(client_socket);
+    pthread_exit(NULL);
+}
+
+int main() {
+    int server_socket, client_socket;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t client_len;
+    pthread_t threads[NUM_THREADS];
+
+    // Create socket
+    server_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_socket < 0) {
+        perror("Error creating socket");
+        exit(EXIT_FAILURE);
+    }
+
+    // Initialize server address structure
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(8080);
+
+    // Bind the socket to the specified address
+    if (bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Listen for incoming connections
+    if (listen(server_socket, 5) < 0) {
+        perror("listen failed");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Server is listening...\n");
+
+    // Accept incoming connections and create a new thread for each client
+    while (1) {
+        client_len = sizeof(client_addr);
+        client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &client_len);
+        if (client_socket < 0) {
+            perror("accept failed");
+            continue;
+        }
+
+        // Create a new thread to handle the client request
+        pthread_create(&threads[ellipses.size() % NUM_THREADS], NULL, handle_client_request, &client_socket);
+    }
+
+    // Close the server socket
+    close(server_socket);
+
+    return 0;
+}
