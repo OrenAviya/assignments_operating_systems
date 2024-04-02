@@ -1,0 +1,80 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <string.h>
+
+#define NUM_CLIENTS 5
+#define BUFFER_SIZE 1024
+
+void error(const char *msg) {
+    perror(msg);
+    exit(EXIT_FAILURE);
+}
+
+int main() {
+    // Array of client processes
+    pid_t clients[NUM_CLIENTS];
+
+    // Fork multiple client processes
+    for (int i = 0; i < NUM_CLIENTS; i++) {
+        pid_t pid = fork();
+        if (pid < 0) {
+            error("ERROR in fork()");
+        } else if (pid == 0) {
+            // Child process (client)
+            int client_socket;
+            struct sockaddr_in server_addr;
+            char buffer[BUFFER_SIZE];
+
+            // Create a socket
+            client_socket = socket(AF_INET, SOCK_STREAM, 0);
+            if (client_socket < 0) {
+                error("ERROR opening socket");
+            }
+
+            // Set server address
+            memset(&server_addr, '0', sizeof(server_addr));
+            server_addr.sin_family = AF_INET;
+            server_addr.sin_port = htons(8080);
+
+            // Convert IPv4 and IPv6 addresses from text to binary form
+            if (inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr) <= 0) {
+                error("ERROR invalid address");
+            }
+
+            // Connect to server
+            if (connect(client_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+                error("ERROR connecting");
+            }
+
+            // Generate a random number (example)
+            int random_number = rand() % 100;
+
+            // Send the number to the server
+            snprintf(buffer, BUFFER_SIZE, "%d", random_number);
+            if (send(client_socket, buffer, strlen(buffer), 0) < 0) {
+                error("ERROR writing to socket");
+            }
+
+            printf("Client %d: Sent number %d to server\n", getpid(), random_number);
+
+            // Close the socket
+            close(client_socket);
+            exit(EXIT_SUCCESS);
+        } else {
+            // Parent process (launcher)
+            clients[i] = pid;
+        }
+    }
+
+    // Wait for all client processes to finish
+    for (int i = 0; i < NUM_CLIENTS; i++) {
+        waitpid(clients[i], NULL, 0);
+    }
+
+    return 0;
+}
