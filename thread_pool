@@ -1,0 +1,136 @@
+This code demonstrates a simple thread pool implementation in C. 
+The ThreadPool structure maintains a pool of threads and a queue of tasks.
+New tasks can be added to the pool,
+and worker threads will execute them asynchronously.
+The thread pool automatically manages the task queue and ensures that tasks are executed as soon as threads become available.
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+
+#define MAX_TASKS 10
+
+// Structure to represent a task
+typedef struct {
+    void *(*function)(void *); // Pointer to function to execute
+    void *arg; // Argument to pass to the function
+} Task;
+
+// Structure to represent the thread pool
+typedef struct {
+    pthread_t *threads; // Array of threads
+    Task *task_queue; // Array to store tasks
+    int thread_count; // Number of threads in the pool
+    int task_count; // Number of tasks in the queue
+    int queue_size; // Maximum size of the task queue
+    int head; // Index of the head of the task queue
+    int tail; // Index of the tail of the task queue
+    pthread_mutex_t lock; // Mutex for accessing the task queue
+    pthread_cond_t task_available; // Condition variable to signal task availability
+} ThreadPool;
+
+// Function to initialize the thread pool
+ThreadPool *thread_pool_init(int num_threads, int queue_size) {
+    ThreadPool *pool = (ThreadPool *)malloc(sizeof(ThreadPool));
+    if (pool == NULL) {
+        perror("Error: Memory allocation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    pool->threads = (pthread_t *)malloc(num_threads * sizeof(pthread_t));
+    if (pool->threads == NULL) {
+        perror("Error: Memory allocation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    pool->task_queue = (Task *)malloc(queue_size * sizeof(Task));
+    if (pool->task_queue == NULL) {
+        perror("Error: Memory allocation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    pool->thread_count = num_threads;
+    pool->task_count = 0;
+    pool->queue_size = queue_size;
+    pool->head = 0;
+    pool->tail = 0;
+
+    pthread_mutex_init(&pool->lock, NULL);
+    pthread_cond_init(&pool->task_available, NULL);
+
+    // Create worker threads
+    for (int i = 0; i < num_threads; i++) {
+        pthread_create(&pool->threads[i], NULL, (void *(*)(void *))thread_pool_worker, (void *)pool);
+    }
+
+    return pool;
+}
+
+// Function to add a task to the thread pool
+void thread_pool_add_task(ThreadPool *pool, void *(*function)(void *), void *arg) {
+    pthread_mutex_lock(&pool->lock);
+    while (pool->task_count == pool->queue_size) {
+        // Queue is full, wait for space to become available
+        pthread_cond_wait(&pool->task_available, &pool->lock);
+    }
+    pool->task_queue[pool->tail].function = function;
+    pool->task_queue[pool->tail].arg = arg;
+    pool->tail = (pool->tail + 1) % pool->queue_size;
+    pool->task_count++;
+    pthread_cond_signal(&pool->task_available);
+    pthread_mutex_unlock(&pool->lock);
+}
+
+// Function executed by worker threads
+void *thread_pool_worker(ThreadPool *pool) {
+    while (1) {
+        pthread_mutex_lock(&pool->lock);
+        while (pool->task_count == 0) {
+            // No tasks available, wait for task to be added
+            pthread_cond_wait(&pool->task_available, &pool->lock);
+        }
+        Task task = pool->task_queue[pool->head];
+        pool->head = (pool->head + 1) % pool->queue_size;
+        pool->task_count--;
+        pthread_cond_signal(&pool->task_available);
+        pthread_mutex_unlock(&pool->lock);
+        // Execute the task
+        task.function(task.arg);
+    }
+    return NULL;
+}
+
+// Function to destroy the thread pool
+void thread_pool_destroy(ThreadPool *pool) {
+    free(pool->threads);
+    free(pool->task_queue);
+    pthread_mutex_destroy(&pool->lock);
+    pthread_cond_destroy(&pool->task_available);
+    free(pool);
+}
+
+// Example task function
+void *example_task(void *arg) {
+    int task_number = *(int *)arg;
+    printf("Task %d executed\n", task_number);
+    return NULL;
+}
+
+int main() {
+    ThreadPool *pool = thread_pool_init(5, MAX_TASKS);
+
+    // Add example tasks to the thread pool
+    for (int i = 0; i < 10; i++) {
+        int *arg = (int *)malloc(sizeof(int));
+        *arg = i;
+        thread_pool_add_task(pool, example_task, (void *)arg);
+    }
+
+    // Sleep to allow tasks to complete
+    sleep(5);
+
+    thread_pool_destroy(pool);
+
+    return 0;
+}
+```
